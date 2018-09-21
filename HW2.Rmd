@@ -3,9 +3,9 @@ title: "HW2 STA521 Fall18"
 author: '[Your Name Here, netid and github username here]'
 date: "Due September 23, 2018 5pm"
 output:
-  pdf_document: default
   html_document:
     df_print: paged
+  pdf_document: default
 ---
 
 ## Backgound Reading
@@ -25,9 +25,10 @@ This exercise involves the UN data set from `alr3` package. Install `alr3` and t
 0.  Preliminary read in the data.  After testing, modify the code chunk so that output, messages and warnings are suppressed.  *Exclude text from final*
 
 ```{r data}
+library(GGally)
 library(alr3)
+library(knitr)
 data(UN3, package="alr3")
-help(UN3) 
 library(car)
 ```
 
@@ -35,13 +36,16 @@ library(car)
 1. Create a summary of the data.  How many variables have missing data?  Which are quantitative and which are qualtitative?
 
 ```{r}
-
+summary(UN3)
 ```
+There are total 7 varialbes and 6 them have missing data. All of them are quantitative.
 
 2. What is the mean and standard deviation of each quantitative predictor?  Provide in a nicely formatted table.
 
 ```{r}
-
+means <- colMeans(UN3,na.rm=TRUE)
+sds <- sqrt(apply(UN3,2,function(x){var(x,na.rm = TRUE)}))
+kable(rbind(means,sds))
 ```
 
 
@@ -49,50 +53,78 @@ library(car)
 highlighting the relationships among the predictors. Comment
 on your findings regarding trying to predict `ModernC` from the other variables.  Are there potential outliers, nonlinear relationships or transformations that appear to be needed based on your graphical EDA?
 
-```{r}
+```{r warning=F}
+ggpairs(UN3)
 
 ```
+
+There is s quite obvious linear relationship between 'ModernC' and 'Change', 'Fertility', 'Purban'. It seems that 'Frate' can't explain anything about 'ModrenC'. We need to do some transformations on the 'PPgdp' and 'Pop' as the scales for these variables are so large that they doesn't show some linear relationship with 'ModernC'. And there are two countries, China and India, that have population seems to be portential outliers.
 
 ## Model Fitting
 
 4.  Use the `lm()` function to perform a multiple linear regression with `ModernC` as the response and all other variables as the predictors, using the formula `ModernC ~ .`, where the `.` includes all remaining variables in the dataframe.  Create  diagnostic residual plot from the linear model object and comment on results regarding assumptions.  How many observations are used in your model fitting?
 
 ```{r}
-
+modernc_lm<-lm(ModernC~.,data=UN3,na.action = na.omit)
+summary(modernc_lm)
+par(mfrow=c(2,2))
+plot(modernc_lm)
 ```
+
+The standardized residuals seem to follow normal distribution and don't vary with increase of $\hat{y}$. There are two high influential points because their population is much larger than other countries but they don't have large Cook's distance and shoud not be considered as outliers.
 
 5. Examine added variable plots `car::avPlot` or `car::avPlots`  for your model above. Are there any plots that suggest that transformations are needed for any of the terms in the model? Describe. Is it likely that any of the localities are influential for any of the terms?  Which localities?  Which terms?  
 
 ```{r}
+avPlots(modernc_lm)
 
 ```
+
+In the Pop term, we can see that China and India are high influential.
 
 6.  Using the Box-Tidwell  `car::boxTidwell` or graphical methods find appropriate transformations of the predictor variables to be used as predictors in the linear model.  If any predictors are negative, you may need to transform so that they are non-negative.  Describe your method and  the resulting transformations.
 
-
 ```{r}
-
+tran_predictor <- boxTidwell(ModernC ~ PPgdp + Pop,~Change+Frate+Purban, data = UN3, na.action = na.exclude)
+boxTidwell(ModernC ~ PPgdp + Pop,~Change+Frate+Purban, data = UN3, na.action = na.exclude)
 ```
+
+Since we only need to transform Pop and PPgdp and they are nonegative, we don't need to make it nonegetive. According to the result above, we might transform PPgdp to $\frac{1}{\sqrt{PPgdp}}$ and Pop to $log(Pop)$
 
 7. Given the selected transformations of the predictors, select a transformation of the response using `MASS::boxcox` or `car::boxCox` and justify.
 
 
 ```{r}
-
+UN3['logPop'] <- log(UN3$Pop)
+UN3['PPgdp_trans'] <- 1/sqrt(UN3$PPgdp)
+modernc_lm_pre_tran <- lm(ModernC~logPop+PPgdp_trans+Frate+Change+Fertility+Purban,data = UN3)
+MASS::boxcox(modernc_lm_pre_tran)
 ```
+As the plot shows above, we don't need to do a transformation on the response.
 
 8.  Fit the regression using the transformed variables.  Provide residual plots and added variables plots and comment.  If you feel that you need additional transformations of either the response or predictors, repeat any steps until you feel satisfied.
+```{r }
+summary(modernc_lm_pre_tran)
+par(mfrow=c(2,2))
+plot(modernc_lm_pre_tran)
+avPlots(modernc_lm_pre_tran)
+```
+
+There seems no problem with various plot.
 
 9. Start by finding the best transformation of the response and then find transformations of the predictors.  Do you end up with a different model than in 8?
 
 
 ```{r}
-
+MASS::boxcox(modernc_lm)
 ```
+
+We see that if we apply boxcox to the response first, we don't need to transform response. So the result would be same as doing transformation of the predictors first.
+
 
 10.  Are there any outliers or influential points in the data?  Explain.  If so, refit the model after removing any outliers and comment on residual plots.
 
-
+There is no any outlier or influential point after the transformation.
 ```{r}
 
 ```
@@ -103,11 +135,15 @@ on your findings regarding trying to predict `ModernC` from the other variables.
 
 
 ```{r}
-
+sumary_table <- cbind(coef(modernc_lm_pre_tran),confint(modernc_lm_pre_tran))
+Interpretations <- c("",'increasing 10% of Pop would increase response by 1.472log(1.1)','increasing 10% of PPgdp would decrease response by 5.507*(1-1/sqrt(1.1))/sqrt(PPgdp)','increasing 1 unit of Frate would increase response by 0.18934','increasing 1 unit of change would increase response by 4.9930','increasing 1 unit of Fertility would decrease response by 9.6759 unit','increasing 1 unit of Fertility would decrease response by 0.0708')
+sumary_table<-cbind(sumary_table,Interpretations)
+knitr::kable(sumary_table)
 ```
 
 
 12. Provide a paragraph summarizing your final model  and findings suitable for the US envoy to the UN after adjusting for outliers or influential points.   You should provide a justification for any case deletions in your final model
+
 
 
 ```{r}
@@ -120,5 +156,58 @@ on your findings regarding trying to predict `ModernC` from the other variables.
     
 13. Prove that the intercept in the added variable scatter plot will always be zero.  _Hint:  use the fact that if $H$ is the project matrix which contains a column of ones, then $1_n^T (I - H) = 0$.  Use this to show that the sample mean of residuals will always be zero if there is an intercept._
 
+$1_n^Te\_Y=1^T_n(Y-\hat{Y})=1_n^T(Y-X\hat{\beta})=1^T_n(Y-X(X^TX)X^TY)=1^T_n(I-X(X^TX)X^T)Y=1^T_n(I-H)Y=0$
+
+similarly we can get $1_n^Te\_X=0$
+
+If we do a regression on $e\_Y$ based on $e\_X$,
+
+$\hat{\beta_0}=\bar{e\_Y}-\hat{\beta_1}\bar{e\_X}=1^T_ne\_Y-\hat{\beta_1}1_n^Te\_X=0-0=0$
+
+The intercept in the added variable scatter plot will always be zero.
 
 14. For multiple regression with more than 2 predictors, say a full model given by `Y ~ X1 + X2 + ... Xp`   we create the added variable plot for variable `j` by regressing `Y` on all of the `X`'s except `Xj` to form `e_Y` and then regressing `Xj` on all of the other X's to form `e_X`.  Confirm that the slope in a manually constructed added variable plot for one of the predictors  in Ex. 10 is the same as the estimate from your model. 
+
+let $X_j=(x_1,x_2,...,x_{j-1},x_{j+1},...,x_p)$, $X=(x_j,X_j)$
+
+$e\_Y=Y-X_j(X_j^TX_j)^{-1}X_j^TY=(I-X_j(X_j^TX_j)^{-1}X_j^T)Y$
+
+$e\_X=(I-X_j(X_j^TX_j)^{-1}X_j^T)x_j$
+
+$\hat{\beta} ^*_j=\frac{e\_X^Te\_Y}{e\_X^Te\_X}=\frac{x_j^T(I-X_j(X_j^TX_j)^{-1}X_j^T)Y}{x_j^T(I-X_j(X_j^TX_j)^{-1}X_j^T)x_j}$
+
+$\hat{\beta}=(X^TX)^{-1}X^TY=(\left(\begin{matrix} x_j^T\\ X_j^T \end{matrix}\right)\left(\begin{matrix} x_j& X_j \end{matrix}\right))^{-1}\left(\begin{matrix} x_j^T\\ X_j^T \end{matrix}\right)Y=\left(\begin{matrix} x_j^Tx_j&x_j^TX_j\\ X_j^Tx_j&X_j^TX_j \end{matrix}\right)^{-1}\left(\begin{matrix} x_j^T\\ X_j^T \end{matrix}\right)Y$
+
+As we only care about the first entry of $\hat{\beta}$, we only need the first row of$\left(\begin{matrix} x_j^Tx_j  &  x_j^TX_j\\ X_j^Tx_j  &  X_j^TX_j \end{matrix}\right)^{-1}$, donate this by $h_1$
+
+$h_1=\left(\begin{matrix} \frac{1}{x_j^Tx_j}+\frac{1}{(x_j^Tx_j)^2}x_j^TX_jAX_j^Tx_j& -\frac{1}{x_j^Tx_j}x_j^TX_jA \end{matrix}\right)$
+
+where
+$A=(X_j^TX_j- X_j^Tx_jx_j^TX_j/x_j^Tx_j)^{-1}$
+
+$(X_j^TX_j- X_j^Tx_jx_j^TX_j/x_j^Tx_j)A=I$
+
+$\frac{X_j^Tx_jx_j^TX_j}{x_j^Tx_j}A=X_j^TX_jA-I$
+
+$\hat{\beta}_j=h_1\left(\begin{matrix} x_j^T\\ X_j^T \end{matrix}\right)Y=\left(\begin{matrix} \frac{1}{x_j^Tx_j}+\frac{1}{(x_j^Tx_j)^2}x_j^TX_jAX_j^Tx_j& -\frac{1}{x_j^Tx_j}x_j^TX_jA \end{matrix}\right)\left(\begin{matrix} x_j^T\\ X_j^T \end{matrix}\right)Y=((\frac{1}{x_j^Tx_j}+\frac{1}{(x_j^Tx_j)^2}x_j^TX_jAX_j^Tx_j)x_j^T-\frac{1}{x_j^Tx_j}x_j^TX_jAX^T_j)Y\\=(\frac{x_j^T}{x_j^Tx_j}+\frac{1}{xj^Tx_j}x_j^TX_jAX_j^T(\frac{x_jx_j^T}{x_j^Tx_j}-I))Y$
+
+$C = \frac{x_j^T}{x_j^Tx_j}+\frac{1}{xj^Tx_j}x_j^TX_jAX_j^T(\frac{x_jx_j^T}{x_j^Tx_j}-I)$
+
+$D = \frac{e\_X^Te\_Y}{e\_X^Te\_X}=\frac{x_j^T(I-X_j(X_j^TX_j)^{-1}X_j^T)}{x_j^T(I-X_j(X_j^TX_j)^{-1}X_j^T)x_j}$
+
+$\therefore \hat{\beta}_j^*=DY$, $\hat{\beta_j}=CY$
+
+$(x_j^Tx_j-x_j^TX_j(X_j^TX_j)^{-1}X_j^Tx_j)C=x_j^T+x_j^TX_jAX_j^T(\frac{x_jx_j^T}{x_j^Tx_j}-I)-\frac{x_j^THx_jx_j^T}{x_j^Tx_j}-x_j^TX_j(X_j^TX_j)^{-1}\frac{X_jx_jx_j^TX_jA}{x^T_jx_j}X_j^T(\frac{x_jx_j^T}{x_j^Tx_j}-I)\\=x_j^T+x_j^TX_jAX_j^T(\frac{x_jx_j^T}{x_j^Tx_j}-I)-\frac{x_j^THx_jx_j^T}{x_j^Tx_j}-x_j^TX_j(X_j^TX_j)^{-1}(X_j^TX_jA-I)X_j^T(\frac{x_jx_j^T}{x_j^Tx_j}-I)\\=x_j^T+x_j^TX_jAX_j^T(\frac{x_jx_j^T}{x_j^Tx_j}-I)-\frac{x_j^THx_jx_j^T}{x_j^Tx_j}-x_j^TX_jAX_j^T(\frac{x_jx_j^T}{x_j^Tx_j}-I)+x_j^TH(\frac{x_jx_j^T}{x_j^Tx_j}-I)\\=x_j^T-x_j^TH$
+
+where $H=X_j(X_j^TX_j)^{-1}X_j^T$
+
+$\therefore C=\frac{x_j^T-x_j^TH}{(x_j^Tx_j-x_j^TX_j(X_j^TX_j)^{-1}X_j^Tx_j)}=D$
+
+$\hat{\beta}_j^*=\hat{\beta}_j$
+
+The slope of added variable plot is equal to the coefficient of full model.
+
+
+
+
+
