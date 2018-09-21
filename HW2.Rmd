@@ -167,7 +167,15 @@ $\hat{\beta_0}=\bar{e\_Y}-\hat{\beta_1}\bar{e\_X}=1^T_ne\_Y-\hat{\beta_1}1_n^Te\
 The intercept in the added variable scatter plot will always be zero.
 
 14. For multiple regression with more than 2 predictors, say a full model given by `Y ~ X1 + X2 + ... Xp`   we create the added variable plot for variable `j` by regressing `Y` on all of the `X`'s except `Xj` to form `e_Y` and then regressing `Xj` on all of the other X's to form `e_X`.  Confirm that the slope in a manually constructed added variable plot for one of the predictors  in Ex. 10 is the same as the estimate from your model. 
-
+```{r}
+beta_full<-modernc_lm_pre_tran$coef[-1]
+slope_av<-c()
+UN3_new<-na.omit(UN3[-c(3,5)])
+for(i in 2:7){
+  e_y<-residuals()
+  slope_av<-c(slope_av,lm(ModernC~.,data = UN3[-i])$coef[2])
+}
+```
 let $X_j=(x_1,x_2,...,x_{j-1},x_{j+1},...,x_p)$, $X=(x_j,X_j)$
 
 $e\_Y=Y-X_j(X_j^TX_j)^{-1}X_j^TY=(I-X_j(X_j^TX_j)^{-1}X_j^T)Y$
@@ -197,7 +205,7 @@ $D = \frac{e\_X^Te\_Y}{e\_X^Te\_X}=\frac{x_j^T(I-X_j(X_j^TX_j)^{-1}X_j^T)}{x_j^T
 
 $\therefore \hat{\beta}_j^*=DY$, $\hat{\beta_j}=CY$
 
-$(x_j^Tx_j-x_j^TX_j(X_j^TX_j)^{-1}X_j^Tx_j)C=x_j^T+x_j^TX_jAX_j^T(\frac{x_jx_j^T}{x_j^Tx_j}-I)-\frac{x_j^THx_jx_j^T}{x_j^Tx_j}-x_j^TX_j(X_j^TX_j)^{-1}\frac{X_jx_jx_j^TX_jA}{x^T_jx_j}X_j^T(\frac{x_jx_j^T}{x_j^Tx_j}-I)\\=x_j^T+x_j^TX_jAX_j^T(\frac{x_jx_j^T}{x_j^Tx_j}-I)-\frac{x_j^THx_jx_j^T}{x_j^Tx_j}-x_j^TX_j(X_j^TX_j)^{-1}(X_j^TX_jA-I)X_j^T(\frac{x_jx_j^T}{x_j^Tx_j}-I)\\=x_j^T+x_j^TX_jAX_j^T(\frac{x_jx_j^T}{x_j^Tx_j}-I)-\frac{x_j^THx_jx_j^T}{x_j^Tx_j}-x_j^TX_jAX_j^T(\frac{x_jx_j^T}{x_j^Tx_j}-I)+x_j^TH(\frac{x_jx_j^T}{x_j^Tx_j}-I)\\=x_j^T-x_j^TH$
+$(x_j^Tx_j-x_j^TX_j(X_j^TX_j)^{-1}X_j^Tx_j)C\\=x_j^T+x_j^TX_jAX_j^T(\frac{x_jx_j^T}{x_j^Tx_j}-I)-\frac{x_j^THx_jx_j^T}{x_j^Tx_j}-x_j^TX_j(X_j^TX_j)^{-1}\frac{X_jx_jx_j^TX_jA}{x^T_jx_j}X_j^T(\frac{x_jx_j^T}{x_j^Tx_j}-I)\\=x_j^T+x_j^TX_jAX_j^T(\frac{x_jx_j^T}{x_j^Tx_j}-I)-\frac{x_j^THx_jx_j^T}{x_j^Tx_j}-x_j^TX_j(X_j^TX_j)^{-1}(X_j^TX_jA-I)X_j^T(\frac{x_jx_j^T}{x_j^Tx_j}-I)\\=x_j^T+x_j^TX_jAX_j^T(\frac{x_jx_j^T}{x_j^Tx_j}-I)-\frac{x_j^THx_jx_j^T}{x_j^Tx_j}-x_j^TX_jAX_j^T(\frac{x_jx_j^T}{x_j^Tx_j}-I)+x_j^TH(\frac{x_jx_j^T}{x_j^Tx_j}-I)\\=x_j^T-x_j^TH$
 
 where $H=X_j(X_j^TX_j)^{-1}X_j^T$
 
