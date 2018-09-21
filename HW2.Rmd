@@ -144,7 +144,7 @@ knitr::kable(sumary_table)
 
 12. Provide a paragraph summarizing your final model  and findings suitable for the US envoy to the UN after adjusting for outliers or influential points.   You should provide a justification for any case deletions in your final model
 
-
+ModernC is propotional to change, $\frac{1}{\sqrt{PPgdp}}$, Frate, $log(POP)$, Fertility and Purban. Pop, Frate, change have positive effect on the ModernC while PPgdp, Fertility, Purban have negetive effect on the ModernC. 
 
 ```{r}
 
