@@ -1,11 +1,12 @@
 ---
 title: "HW2 STA521 Fall18"
-author: 'Zixi Wang, zw152, BillyWangwzx'
+author: "Zixi Wang, zw152, BillyWangwzx"
 date: "Due September 23, 2018 5pm"
 output:
+  pdf_document: default
+  word_document: default
   html_document:
     df_print: paged
-  pdf_document: default
 ---
 
 ## Backgound Reading
@@ -17,7 +18,7 @@ Readings: Chapters 3-4 in Weisberg Applied Linear Regression
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-This exercise involves the UN data set from `alr3` package. Install `alr3` and the `car` packages and load the data to answer the following questions adding your code in the code chunks.  Please add appropriate code to the chunks to suppress messages and warnings as needed once you are sure the code is working properly and remove instructions if no longer needed. Figures should have informative captions. Please switch the output to pdf for your final version to upload to Sakai. **Remove these instructions for final submission**
+
 
 
 ## Exploratory Data Analysis
@@ -97,7 +98,7 @@ Since we only need to transform Pop and PPgdp and they are nonegative, we don't 
 ```{r}
 UN3['logPop'] <- log(UN3$Pop)
 UN3['PPgdp_trans'] <- 1/sqrt(UN3$PPgdp)
-modernc_lm_pre_tran <- lm(ModernC~logPop+PPgdp_trans+Frate+Change+Fertility+Purban,data = UN3)
+modernc_lm_pre_tran <- lm(ModernC~Change+Frate+Fertility+Purban+logPop+PPgdp_trans,data = UN3)
 MASS::boxcox(modernc_lm_pre_tran)
 ```
 As the plot shows above, we don't need to do a transformation on the response.
@@ -134,17 +135,25 @@ There is no any outlier or influential point after the transformation.
 11. For your final model, provide summaries of coefficients with 95% confidence intervals in a nice table with interpretations of each coefficient.  These should be in terms of the original units! 
 
 
-```{r}
-sumary_table <- cbind(coef(modernc_lm_pre_tran),confint(modernc_lm_pre_tran))
-Interpretations <- c("",'increasing 10% of Pop would increase response by 1.472log(1.1)','increasing 10% of PPgdp would decrease response by 5.507*(1-1/sqrt(1.1))/sqrt(PPgdp)','increasing 1 unit of Frate would increase response by 0.18934','increasing 1 unit of change would increase response by 4.9930','increasing 1 unit of Fertility would decrease response by 9.6759 unit','increasing 1 unit of Fertility would decrease response by 0.0708')
+```{r echo=FALSE}
+estimate <- coef(modernc_lm_pre_tran)
+sumary_table <- round(cbind(estimate,confint(modernc_lm_pre_tran)),3)
+Interpretations <- c("",
+                     sprintf('increasing 1 unit of change would increase response by %f unit', coef(modernc_lm_pre_tran)[2]),
+                     sprintf('increasing 1 unit of Frate would increase response by %f unit', coef(modernc_lm_pre_tran)[3]),
+                     
+                     sprintf('increasing 1 unit of Fertility would decrease response by %f unit',coef(modernc_lm_pre_tran)[4]),
+                     sprintf('increasing 1 unit of Purban would decrease response by %f unit', coef(modernc_lm_pre_tran)[5]),
+                     sprintf('increasing 10%% of Pop would increase response by %f*log(1.1)', coef(modernc_lm_pre_tran)[6]),
+                     sprintf('increasing 10%% of PPgdp would decrease response\n by %f*(1-1/sqrt(1.1))/sqrt(PPgdp)',coef(modernc_lm_pre_tran)[7])
+                     )
 sumary_table<-cbind(sumary_table,Interpretations)
-knitr::kable(sumary_table)
+knitr::kable(sumary_table,format ='latex')
 ```
-
 
 12. Provide a paragraph summarizing your final model  and findings suitable for the US envoy to the UN after adjusting for outliers or influential points.   You should provide a justification for any case deletions in your final model
 
-ModernC is propotional to change, $\frac{1}{\sqrt{PPgdp}}$, Frate, $log(POP)$, Fertility and Purban. Pop, Frate, change have positive effect on the ModernC while PPgdp, Fertility, Purban have negetive effect on the ModernC. 
+ModernC is propotional to change, $\frac{1}{\sqrt{PPgdp}}$, Frate, $log(POP)$, Fertility and Purban. Pop, Frate, change,PPgdp have positive effect on the ModernC while Fertility, Purban have negetive effect on the ModernC. Small, developed countries  have larger ModernC than large, developing coutries. 
 
 ```{r}
 
@@ -168,14 +177,21 @@ The intercept in the added variable scatter plot will always be zero.
 
 14. For multiple regression with more than 2 predictors, say a full model given by `Y ~ X1 + X2 + ... Xp`   we create the added variable plot for variable `j` by regressing `Y` on all of the `X`'s except `Xj` to form `e_Y` and then regressing `Xj` on all of the other X's to form `e_X`.  Confirm that the slope in a manually constructed added variable plot for one of the predictors  in Ex. 10 is the same as the estimate from your model. 
 ```{r}
-beta_full<-modernc_lm_pre_tran$coef[-1]
+beta_of_full_model<-modernc_lm_pre_tran$coef[-1]
 slope_av<-c()
 UN3_new<-na.omit(UN3[-c(3,5)])
 for(i in 2:7){
-  e_y<-residuals()
-  slope_av<-c(slope_av,lm(ModernC~.,data = UN3[-i])$coef[2])
+  X <- cbind(1,as.matrix(UN3_new[-c(1,i)]))
+  H <- X%*%solve(t(X)%*%X)%*%t(X)
+  
+  e_Y <- (diag(1,nrow(UN3_new))-H)%*%UN3_new$ModernC
+  e_X <- (diag(1,nrow(UN3_new))-H)%*%UN3_new[[i]]
+  slope_av<-c(slope_av,sum(e_Y*e_X)/sum(e_X**2))
 }
+beta_vs<-cbind(beta_of_full_model,slope_av)
+kable(beta_vs)
 ```
+
 let $X_j=(x_1,x_2,...,x_{j-1},x_{j+1},...,x_p)$, $X=(x_j,X_j)$
 
 $e\_Y=Y-X_j(X_j^TX_j)^{-1}X_j^TY=(I-X_j(X_j^TX_j)^{-1}X_j^T)Y$
